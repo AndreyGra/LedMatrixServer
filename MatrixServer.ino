@@ -1,27 +1,25 @@
-  #include <ESP8266WiFi.h>
+#include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
-#include <Ticker.h> 
+#include <Ticker.h>
 #include "Wire.h"
 #include "Matrix.hpp"
- 
+enum STATE {WAIT,TURN_ON,UPDATE,TURN_OFF};
+
 Ticker blinker;
 Matrix matrix;
+
+STATE screen_state;
 //=======================================================================
-void ICACHE_RAM_ATTR renderingISR(){
-
-    //Turn LED OFF
-    matrix.turnOff();
-    
-    //Update
+void ICACHE_RAM_ATTR renderingISR() {
+  if(screen_state == WAIT){
+    screen_state = TURN_OFF;
+    }
+  else if(screen_state == UPDATE){
     matrix.update();
-    
-    //Turn LED ON
-    matrix.turnOn();
-
-    //Reset timer
-    timer1_write(4000);
+    screen_state = TURN_ON;
+    }
 }
 
 
@@ -33,39 +31,39 @@ ESP8266WebServer server(80);
 const int led = 13;
 
 
-bool inputIsSingleDigit(String &input){
-  if(input == "")               {}
-    else if(input.length() > 1) {} 
-    else if (!isDigit(input[0])){}
-    else if (input.toInt() > 7) {}
-    else {
-      return true;
-      }
-
-    return false;
+bool inputIsSingleDigit(String &input) {
+  if (input == "")               {}
+  else if (input.length() > 1) {}
+  else if (!isDigit(input[0])) {}
+  else if (input.toInt() > 7) {}
+  else {
+    return true;
   }
+
+  return false;
+}
 
 void handlePixelChange() {
   String message = "";
   String row = server.arg("row");
   String col = server.arg("col");
 
-  if( !inputIsSingleDigit (row) || !inputIsSingleDigit(col) ){
+  if ( !inputIsSingleDigit (row) || !inputIsSingleDigit(col) ) {
     message += "Params are not in correct format! \n";
-    }
+  }
   else {
-    message += "Inverted row:"+row+" and col:" + col + "\n";
+    message += "Inverted row:" + row + " and col:" + col + "\n";
     int rowInt = row.toInt();
-    int colInt = col.toInt();  
+    int colInt = col.toInt();
     matrix.changeSingleLED(rowInt, colInt);
-    }
-  
+  }
+
   message += '\n';
   server.sendHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
   server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200,"text/plain","");
-    
+  server.send(200, "text/plain", "");
+
 }
 
 void handleRoot() {
@@ -79,16 +77,16 @@ void handleRoot() {
 void handleNotFound() {
   digitalWrite(led, 1);
   String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
+//  message += "URI: ";
+//  message += server.uri();
+//  message += "\nMethod: ";
+//  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+//  message += "\nArguments: ";
+//  message += server.args();
+//  message += "\n";
+//  for (uint8_t i = 0; i < server.args(); i++) {
+//    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+//  }
   server.send(404, "text/plain", message);
   digitalWrite(led, 0);
 }
@@ -96,15 +94,13 @@ void handleNotFound() {
 void setup(void) {
 
   matrix = Matrix();
-  
+
   //Configure Timer that will update the screen
+  timer1_isr_init();
   timer1_attachInterrupt(renderingISR);
   timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
-  timer1_write(4000); //120000 us
+  matrix.turnOff();
   
-  pinMode(led, OUTPUT);
-  digitalWrite(led, 0);
-
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -141,15 +137,28 @@ void setup(void) {
     server.send(200, "text/plain", "Hello World" );
   });
 
-  server.on("/changePixel",HTTP_POST, handlePixelChange);
+  server.on("/changePixel", HTTP_POST, handlePixelChange);
 
   //In case you fucked up :)
   server.onNotFound(handleNotFound);
 
   server.begin();
   Serial.println("HTTP server started");
+  screen_state = TURN_ON;
 }
 
 void loop(void) {
   server.handleClient();
+  if(screen_state == TURN_ON){
+    matrix.turnOn();
+    timer1_write(4000);
+    screen_state = WAIT;
+  }
+  else if(screen_state == WAIT || screen_state == UPDATE){}
+  else if(screen_state == TURN_OFF){
+    matrix.turnOff();
+    screen_state = UPDATE;
+    timer1_write(20);
+  }
+  
 }

@@ -14,8 +14,8 @@ class IOExpander{
     void endTransmission();
 
     public:
-    void writeGPIOA(byte value);
-    void writeGPIOB(byte value);
+    void ICACHE_RAM_ATTR writeGPIOA(byte value);
+    void ICACHE_RAM_ATTR writeGPIOB(byte value);
     void configGPIOA(byte value);
     void configGPIOB(byte value);
     void configI2C(int clock);

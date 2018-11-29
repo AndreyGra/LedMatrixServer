@@ -16,13 +16,13 @@ void IOExpander::endTransmission(){
     Wire.endTransmission();
 }
 
-void IOExpander::writeGPIOA(byte value){
+void ICACHE_RAM_ATTR  IOExpander::writeGPIOA(byte value){
     startTransmission();
     Wire.write(GPIOA_SELECT); 
     Wire.write(value);
     endTransmission();  
 }
-void IOExpander::writeGPIOB(byte value){
+void ICACHE_RAM_ATTR  IOExpander::writeGPIOB(byte value){
     startTransmission();
     Wire.write(GPIOB_SELECT); 
     Wire.write(value);   
