@@ -96,11 +96,9 @@ void handleNotFound() {
 void setup(void) {
 
   matrix = Matrix();
+  matrix.turnOff();
   
-  //Configure Timer that will update the screen
-  timer1_attachInterrupt(renderingISR);
-  timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
-  timer1_write(4000); //120000 us
+ 
   
   pinMode(led, OUTPUT);
   digitalWrite(led, 0);
@@ -148,6 +146,11 @@ void setup(void) {
 
   server.begin();
   Serial.println("HTTP server started");
+
+   //Configure Timer that will update the screen
+  timer1_attachInterrupt(renderingISR);
+  timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
+  timer1_write(4000); //120000 us
 }
 
 void loop(void) {
