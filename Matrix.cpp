@@ -18,7 +18,7 @@
         GPIOB = rowSelectB;
     };
 
-    void Matrix::update(){
+    void ICACHE_RAM_ATTR Matrix::update(){
             //Update rowSelect
             byte rowBits = rowSelect[currentRow];
 
@@ -37,12 +37,12 @@
             GPIOB  =   ((rowBits & rowSelectB) | (ledPattern & ledSelectB)) ^ rowSelectB;
     }
 
-    void Matrix::turnOn(){
+    void ICACHE_RAM_ATTR  Matrix::turnOn(){
             IO.writeGPIOA(GPIOA);
             IO.writeGPIOB(GPIOB);
     }
 
-    void Matrix::turnOff(){
+    void ICACHE_RAM_ATTR  Matrix::turnOff(){
             IO.writeGPIOA(rowSelectA);
             IO.writeGPIOB(rowSelectB);
     }

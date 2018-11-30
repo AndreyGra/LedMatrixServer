@@ -97,9 +97,7 @@ void setup(void) {
 
   matrix = Matrix();
   matrix.turnOff();
-  
  
-  
   pinMode(led, OUTPUT);
   digitalWrite(led, 0);
 

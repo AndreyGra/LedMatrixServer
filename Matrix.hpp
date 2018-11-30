@@ -54,8 +54,8 @@ class Matrix{
     public:
     void update(); //updates row to be rendered
 
-    void turnOn();  //Enables lights
-    void turnOff(); //Disables lights
+    void ICACHE_RAM_ATTR  turnOn();  //Enables lights
+    void ICACHE_RAM_ATTR  turnOff(); //Disables lights
 
     void changeSingleLED(byte row, byte col);
 
