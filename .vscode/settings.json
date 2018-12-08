@@ -1,5 +1,7 @@
 {
     "files.associations": {
         "type_traits": "cpp"
-    }
+    },
+    "arduino.path": "/home/andreygrant/Programs/arduino-1.8.7",
+    "arduino.logLevel": "info",
 }

@@ -1,37 +1,79 @@
-  #include <ESP8266WiFi.h>
+#include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+#include <WebSocketsServer.h>
+#include <WebSocketsClient.h>
+#include <WebSockets.h>
 #include <Ticker.h> 
 #include "Wire.h"
 #include "Matrix.hpp"
  
-Ticker blinker;
+ESP8266WebServer server(80);
+WebSocketsServer webSocket(81);
+
 Matrix matrix;
+//======================================================================
+//Helper functions
+void ICACHE_RAM_ATTR renderingISR();
+bool inputIsSingleDigit(String &input);
+void handlePixelChange();
+void setUpRoutes();
+void handleNotFound();
+void handleRoot();
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght);
 //=======================================================================
-void ICACHE_RAM_ATTR renderingISR(){
-
-    //Turn LED OFF
-    matrix.turnOff();
-    
-    //Update
-    matrix.update();
-    
-    //Turn LED ON
-    matrix.turnOn();
-
-    //Reset timer
-    timer1_write(4000);
-}
-
 
 const char* ssid = "andreyHotSpot";
 const char* password = "andreygrant";
 
-ESP8266WebServer server(80);
+void setup(void) {
 
-const int led = 13;
+  matrix = Matrix();
 
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  Serial.println("");
+
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  if (MDNS.begin("esp8266")) {
+    Serial.println("MDNS responder started");
+  }
+
+  //For routings
+  setUpRoutes();
+
+  //In case you fucked up :)
+  server.onNotFound(handleNotFound);
+
+  server.begin();
+  Serial.println("HTTP server started");
+
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);          // if there's an incomming websocket message, go to function 'webSocketEvent'
+  Serial.println("WebSocket server started.");
+
+  //Configure Timer that will update the screen
+  //timer1_attachInterrupt(renderingISR);
+  //timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
+  //timer1_write(4000); //120000 us
+}
+
+void loop(void) {
+  webSocket.loop();       
+  server.handleClient();
+}
 
 bool inputIsSingleDigit(String &input){
   if(input == "")               {}
@@ -69,15 +111,12 @@ void handlePixelChange() {
 }
 
 void handleRoot() {
-  digitalWrite(led, 1);
   server.sendHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
   server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   server.send(200, "text/plain", "hello \n" );
-  digitalWrite(led, 0);
 }
 
 void handleNotFound() {
-  digitalWrite(led, 1);
   String message = "File Not Found\n\n";
   message += "URI: ";
   message += server.uri();
@@ -90,42 +129,25 @@ void handleNotFound() {
     message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
   server.send(404, "text/plain", message);
-  digitalWrite(led, 0);
 }
 
-void setup(void) {
+void ICACHE_RAM_ATTR renderingISR(){
 
-  matrix = Matrix();
-  
-  //Configure Timer that will update the screen
-  timer1_attachInterrupt(renderingISR);
-  timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
-  timer1_write(4000); //120000 us
-  
-  pinMode(led, OUTPUT);
-  digitalWrite(led, 0);
+    //Turn LED OFF
+    matrix.turnOff();
+    
+    //Update
+    matrix.update();
+    
+    //Turn LED ON
+    matrix.turnOn();
 
-  Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  Serial.println("");
+    //Reset timer
+    timer1_write(4000);
+}
 
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(ssid);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  if (MDNS.begin("esp8266")) {
-    Serial.println("MDNS responder started");
-  }
-
-  //This Section will define API that the client can use to update the screen
+void setUpRoutes() {
+   //This Section will define API that the client can use to update the screen
   server.on("/changePixel", HTTP_OPTIONS, []() {
     server.sendHeader("Access-Control-Max-Age", "10000");
     server.sendHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
@@ -141,15 +163,15 @@ void setup(void) {
     server.send(200, "text/plain", "Hello World" );
   });
 
-  server.on("/changePixel",HTTP_POST, handlePixelChange);
-
-  //In case you fucked up :)
-  server.onNotFound(handleNotFound);
-
-  server.begin();
-  Serial.println("HTTP server started");
+  server.on("/",HTTP_GET,[]() {
+    server.send(200,"Hello World");
+  });
 }
 
-void loop(void) {
-  server.handleClient();
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght) {
+  switch(type){
+    case WStype_DISCONNECTED: Serial.println("Disconnected"); break;
+    case WStype_CONNECTED:    Serial.println("Connected") ; break;
+    case WStype_TEXT: Serial.printf("[%u] get Text: %s\n", num, payload);; break;
+  }
 }
