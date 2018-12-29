@@ -51,28 +51,19 @@ void setup(void) {
     Serial.println("MDNS responder started");
   }
 
-  //For routings
-  setUpRoutes();
-
-  //In case you fucked up :)
-  server.onNotFound(handleNotFound);
-
-  server.begin();
-  Serial.println("HTTP server started");
-
   webSocket.begin();
-  webSocket.onEvent(webSocketEvent);          // if there's an incomming websocket message, go to function 'webSocketEvent'
+  // if there's an incomming websocket message, go to function 'webSocketEvent'
+  webSocket.onEvent(webSocketEvent);          
   Serial.println("WebSocket server started.");
 
   //Configure Timer that will update the screen
-  //timer1_attachInterrupt(renderingISR);
-  //timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
-  //timer1_write(4000); //120000 us
+  timer1_attachInterrupt(renderingISR);
+  timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
+  timer1_write(4000); //120000 us
 }
 
 void loop(void) {
   webSocket.loop();       
-  server.handleClient();
 }
 
 bool inputIsSingleDigit(String &input){
@@ -103,32 +94,6 @@ void handlePixelChange() {
     }
   
   message += '\n';
-  server.sendHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
-  server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200,"text/plain","");
-    
-}
-
-void handleRoot() {
-  server.sendHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
-  server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  server.send(200, "text/plain", "hello \n" );
-}
-
-void handleNotFound() {
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", message);
 }
 
 void ICACHE_RAM_ATTR renderingISR(){
@@ -146,32 +111,22 @@ void ICACHE_RAM_ATTR renderingISR(){
     timer1_write(4000);
 }
 
-void setUpRoutes() {
-   //This Section will define API that the client can use to update the screen
-  server.on("/changePixel", HTTP_OPTIONS, []() {
-    server.sendHeader("Access-Control-Max-Age", "10000");
-    server.sendHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
-    server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", "" );
-  });
-
-  server.on("/", HTTP_GET, []() {
-    server.sendHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
-    server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", "Hello World" );
-  });
-
-  server.on("/",HTTP_GET,[]() {
-    server.send(200,"Hello World");
-  });
-}
-
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght) {
   switch(type){
-    case WStype_DISCONNECTED: Serial.println("Disconnected"); break;
-    case WStype_CONNECTED:    Serial.println("Connected") ; break;
-    case WStype_TEXT: Serial.printf("[%u] get Text: %s\n", num, payload);; break;
+    case WStype_DISCONNECTED: 
+      Serial.println("Disconnected"); 
+      break;
+      
+    case WStype_CONNECTED:    
+      Serial.println("Connected");
+    
+    break;
+    
+    
+    case WStype_TEXT: 
+      Serial.printf("[%u] get Text: %s\n", num, payload); 
+      delay(500);
+      webSocket.sendTXT(num, "Got MSG");
+      break;
   }
 }
