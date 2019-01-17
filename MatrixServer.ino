@@ -115,12 +115,13 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght
   switch(type){
     case WStype_DISCONNECTED: 
       Serial.println("Disconnected"); 
+
       break;
-      
+
     case WStype_CONNECTED:    
       Serial.println("Connected");
     
-    break;
+      break;
     
     
     case WStype_TEXT: 
